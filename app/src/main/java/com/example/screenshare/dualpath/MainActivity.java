@@ -3,8 +3,14 @@ package com.example.screenshare.dualpath;
 import android.app.Activity;
 import android.app.ActivityOptions;
 import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.text.InputType;
 import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -13,6 +19,16 @@ import android.widget.Spinner;
 import android.widget.TextView;
 
 public class MainActivity extends Activity {
+    private static final int COLOR_BACKGROUND_TOP = Color.rgb(10, 16, 32);
+    private static final int COLOR_BACKGROUND_BOTTOM = Color.rgb(25, 37, 67);
+    private static final int COLOR_CARD = Color.rgb(30, 42, 73);
+    private static final int COLOR_CARD_STROKE = Color.rgb(70, 92, 140);
+    private static final int COLOR_TEXT_PRIMARY = Color.WHITE;
+    private static final int COLOR_TEXT_SECONDARY = Color.rgb(190, 204, 230);
+    private static final int COLOR_ACCENT = Color.rgb(78, 163, 255);
+    private static final int COLOR_DANGER = Color.rgb(255, 105, 105);
+    private static final int COLOR_INPUT = Color.rgb(244, 248, 255);
+
     private EditText displayIdEditText;
     private Spinner activitySpinner;
     private TextView statusTextView;
@@ -26,48 +42,85 @@ public class MainActivity extends Activity {
         root.setGravity(Gravity.CENTER_HORIZONTAL);
         int padding = dp(24);
         root.setPadding(padding, padding, padding, padding);
+        root.setBackground(makeBackground());
 
         TextView title = new TextView(this);
         title.setText("ScreenShare Dual Path");
-        title.setTextSize(24);
-        root.addView(title);
+        title.setTextColor(COLOR_TEXT_PRIMARY);
+        title.setTextSize(26);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setGravity(Gravity.CENTER);
+        root.addView(title, matchWrapParams());
 
+        TextView subtitle = new TextView(this);
+        subtitle.setText("输入 display_id，选择 OpenGL 子界面，然后启动到目标屏幕");
+        subtitle.setTextColor(COLOR_TEXT_SECONDARY);
+        subtitle.setTextSize(14);
+        subtitle.setGravity(Gravity.CENTER);
+        root.addView(subtitle, matchWrapParams(dp(8), dp(0), dp(0), dp(20)));
+
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(18), dp(18), dp(18), dp(18));
+        card.setBackground(makeRoundedDrawable(COLOR_CARD, COLOR_CARD_STROKE, dp(18)));
+        root.addView(card, matchWrapParams());
+
+        card.addView(makeLabel("目标 display_id（必填）"));
         displayIdEditText = new EditText(this);
-        displayIdEditText.setHint("输入 display_id");
-        displayIdEditText.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_SIGNED);
-        root.addView(displayIdEditText, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
+        displayIdEditText.setHint("例如：0、1、2 或 private display id");
+        displayIdEditText.setSingleLine(true);
+        displayIdEditText.setTextColor(Color.rgb(20, 30, 48));
+        displayIdEditText.setHintTextColor(Color.rgb(105, 119, 145));
+        displayIdEditText.setTextSize(18);
+        displayIdEditText.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_SIGNED);
+        displayIdEditText.setBackground(makeRoundedDrawable(COLOR_INPUT, COLOR_ACCENT, dp(12)));
+        displayIdEditText.setPadding(dp(14), dp(10), dp(14), dp(10));
+        card.addView(displayIdEditText, matchWrapParams(dp(0), dp(8), dp(0), dp(18)));
 
+        card.addView(makeLabel("选择子 Activity"));
         activitySpinner = new Spinner(this);
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,
                 android.R.layout.simple_spinner_item,
-                new String[]{"OpenGL 子 Activity 1", "OpenGL 子 Activity 2"});
+                new String[]{"OpenGL 子 Activity 1  ·  旋转三角形", "OpenGL 子 Activity 2  ·  脉冲方形"}) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                TextView view = (TextView) super.getView(position, convertView, parent);
+                styleSpinnerText(view, false);
+                return view;
+            }
+
+            @Override
+            public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                TextView view = (TextView) super.getDropDownView(position, convertView, parent);
+                styleSpinnerText(view, true);
+                return view;
+            }
+        };
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         activitySpinner.setAdapter(adapter);
-        root.addView(activitySpinner, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
+        activitySpinner.setBackground(makeRoundedDrawable(Color.rgb(242, 247, 255), COLOR_ACCENT, dp(12)));
+        activitySpinner.setPadding(dp(8), dp(4), dp(8), dp(4));
+        card.addView(activitySpinner, matchWrapParams(dp(0), dp(8), dp(0), dp(22)));
 
-        Button startButton = new Button(this);
-        startButton.setText("启动投屏");
+        LinearLayout buttonRow = new LinearLayout(this);
+        buttonRow.setOrientation(LinearLayout.HORIZONTAL);
+        buttonRow.setGravity(Gravity.CENTER);
+        card.addView(buttonRow, matchWrapParams());
+
+        Button startButton = makeActionButton("启动投屏", COLOR_ACCENT);
         startButton.setOnClickListener(v -> startProjection());
-        root.addView(startButton, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
+        buttonRow.addView(startButton, weightedButtonParams(dp(0), dp(0), dp(8), dp(0)));
 
-        Button cancelButton = new Button(this);
-        cancelButton.setText("取消投屏");
+        Button cancelButton = makeActionButton("取消投屏", COLOR_DANGER);
         cancelButton.setOnClickListener(v -> cancelProjection());
-        root.addView(cancelButton, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
+        buttonRow.addView(cancelButton, weightedButtonParams(dp(8), dp(0), dp(0), dp(0)));
 
         statusTextView = new TextView(this);
         statusTextView.setText("请输入 display_id 后启动投屏");
-        root.addView(statusTextView, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
+        statusTextView.setTextColor(COLOR_TEXT_SECONDARY);
+        statusTextView.setTextSize(15);
+        statusTextView.setGravity(Gravity.CENTER);
+        root.addView(statusTextView, matchWrapParams(dp(0), dp(18), dp(0), dp(0)));
 
         setContentView(root);
     }
@@ -75,7 +128,10 @@ public class MainActivity extends Activity {
     private void startProjection() {
         String displayIdValue = displayIdEditText.getText().toString().trim();
         if (displayIdValue.isEmpty()) {
-            statusTextView.setText("请输入 display_id");
+            displayIdEditText.setError("启动投屏前必须输入 display_id");
+            displayIdEditText.requestFocus();
+            statusTextView.setTextColor(COLOR_DANGER);
+            statusTextView.setText("启动投屏前必须输入 display_id");
             return;
         }
 
@@ -83,10 +139,14 @@ public class MainActivity extends Activity {
         try {
             displayId = Integer.parseInt(displayIdValue);
         } catch (NumberFormatException e) {
+            displayIdEditText.setError("display_id 必须是整数");
+            displayIdEditText.requestFocus();
+            statusTextView.setTextColor(COLOR_DANGER);
             statusTextView.setText("display_id 必须是整数");
             return;
         }
 
+        displayIdEditText.setError(null);
         Class<?> targetActivity = activitySpinner.getSelectedItemPosition() == 0
                 ? GlChildActivityOne.class
                 : GlChildActivityTwo.class;
@@ -97,8 +157,10 @@ public class MainActivity extends Activity {
             ActivityOptions options = ActivityOptions.makeBasic();
             options.setLaunchDisplayId(displayId);
             startActivity(intent, options.toBundle());
+            statusTextView.setTextColor(COLOR_TEXT_SECONDARY);
             statusTextView.setText("已启动投屏到 display_id=" + displayId);
         } catch (RuntimeException e) {
+            statusTextView.setTextColor(COLOR_DANGER);
             statusTextView.setText("启动投屏失败: " + e.getMessage());
         }
     }
@@ -107,7 +169,75 @@ public class MainActivity extends Activity {
         Intent intent = new Intent(ProjectionControl.ACTION_STOP_PROJECTION);
         intent.setPackage(getPackageName());
         sendBroadcast(intent);
+        statusTextView.setTextColor(COLOR_TEXT_SECONDARY);
         statusTextView.setText("已发送取消投屏指令");
+    }
+
+    private TextView makeLabel(String text) {
+        TextView label = new TextView(this);
+        label.setText(text);
+        label.setTextColor(COLOR_TEXT_PRIMARY);
+        label.setTextSize(15);
+        label.setTypeface(Typeface.DEFAULT_BOLD);
+        return label;
+    }
+
+    private Button makeActionButton(String text, int color) {
+        Button button = new Button(this);
+        button.setText(text);
+        button.setTextColor(Color.WHITE);
+        button.setTextSize(16);
+        button.setTypeface(Typeface.DEFAULT_BOLD);
+        button.setAllCaps(false);
+        button.setBackground(makeRoundedDrawable(color, color, dp(12)));
+        button.setPadding(dp(8), dp(10), dp(8), dp(10));
+        return button;
+    }
+
+    private void styleSpinnerText(TextView view, boolean dropdown) {
+        view.setTextColor(Color.rgb(18, 30, 52));
+        view.setTextSize(dropdown ? 18 : 17);
+        view.setTypeface(Typeface.DEFAULT_BOLD);
+        view.setPadding(dp(14), dp(12), dp(14), dp(12));
+        if (dropdown) {
+            view.setBackgroundColor(Color.rgb(232, 241, 255));
+        }
+    }
+
+    private GradientDrawable makeBackground() {
+        GradientDrawable drawable = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{COLOR_BACKGROUND_TOP, COLOR_BACKGROUND_BOTTOM});
+        return drawable;
+    }
+
+    private GradientDrawable makeRoundedDrawable(int fillColor, int strokeColor, int radius) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(fillColor);
+        drawable.setCornerRadius(radius);
+        drawable.setStroke(dp(1), strokeColor);
+        return drawable;
+    }
+
+    private LinearLayout.LayoutParams matchWrapParams() {
+        return matchWrapParams(0, 0, 0, 0);
+    }
+
+    private LinearLayout.LayoutParams matchWrapParams(int left, int top, int right, int bottom) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.setMargins(left, top, right, bottom);
+        return params;
+    }
+
+    private LinearLayout.LayoutParams weightedButtonParams(int left, int top, int right, int bottom) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f);
+        params.setMargins(left, top, right, bottom);
+        return params;
     }
 
     private int dp(int value) {
