@@ -18,6 +18,9 @@ import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class MainActivity extends Activity {
     private static final int COLOR_BACKGROUND_TOP = Color.rgb(10, 16, 32);
     private static final int COLOR_BACKGROUND_BOTTOM = Color.rgb(25, 37, 67);
@@ -29,6 +32,8 @@ public class MainActivity extends Activity {
     private static final int COLOR_DANGER = Color.rgb(255, 105, 105);
     private static final int COLOR_INPUT = Color.rgb(244, 248, 255);
 
+    private final Map<Integer, Class<?>> activeActivityByDisplayId = new HashMap<>();
+    private final Map<Class<?>, Integer> activeDisplayIdByActivity = new HashMap<>();
     private EditText displayIdEditText;
     private Spinner activitySpinner;
     private TextView statusTextView;
@@ -147,18 +152,23 @@ public class MainActivity extends Activity {
         }
 
         displayIdEditText.setError(null);
-        Class<?> targetActivity = activitySpinner.getSelectedItemPosition() == 0
-                ? GlChildActivityOne.class
-                : GlChildActivityTwo.class;
+        Class<?> targetActivity = getSelectedActivityClass();
+        if (!prepareProjectionSlot(displayId, targetActivity)) {
+            return;
+        }
+
         Intent intent = new Intent(this, targetActivity);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        intent.putExtra(ProjectionControl.EXTRA_DISPLAY_ID, displayId);
+        intent.putExtra(ProjectionControl.EXTRA_ACTIVITY_CLASS, targetActivity.getName());
 
         try {
             ActivityOptions options = ActivityOptions.makeBasic();
             options.setLaunchDisplayId(displayId);
             startActivity(intent, options.toBundle());
+            rememberProjection(displayId, targetActivity);
             statusTextView.setTextColor(COLOR_TEXT_SECONDARY);
-            statusTextView.setText("已启动投屏到 display_id=" + displayId);
+            statusTextView.setText("已启动" + getActivityLabel(targetActivity) + "到 display_id=" + displayId);
         } catch (RuntimeException e) {
             statusTextView.setTextColor(COLOR_DANGER);
             statusTextView.setText("启动投屏失败: " + e.getMessage());
@@ -169,8 +179,62 @@ public class MainActivity extends Activity {
         Intent intent = new Intent(ProjectionControl.ACTION_STOP_PROJECTION);
         intent.setPackage(getPackageName());
         sendBroadcast(intent);
+        activeActivityByDisplayId.clear();
+        activeDisplayIdByActivity.clear();
         statusTextView.setTextColor(COLOR_TEXT_SECONDARY);
         statusTextView.setText("已发送取消投屏指令");
+    }
+
+    private boolean prepareProjectionSlot(int displayId, Class<?> targetActivity) {
+        Class<?> activeActivityOnDisplay = activeActivityByDisplayId.get(displayId);
+        Integer activeDisplayForActivity = activeDisplayIdByActivity.get(targetActivity);
+
+        if (activeActivityOnDisplay == targetActivity && activeDisplayForActivity != null
+                && activeDisplayForActivity == displayId) {
+            statusTextView.setTextColor(COLOR_TEXT_SECONDARY);
+            statusTextView.setText("已经启动投屏");
+            return false;
+        }
+
+        if (activeDisplayForActivity != null) {
+            statusTextView.setTextColor(COLOR_DANGER);
+            statusTextView.setText(getActivityLabel(targetActivity)
+                    + " 已经在 display_id=" + activeDisplayForActivity + " 使用，请先取消投屏");
+            return false;
+        }
+
+        if (activeActivityOnDisplay != null) {
+            sendStopProjection(displayId, activeActivityOnDisplay);
+            activeActivityByDisplayId.remove(displayId);
+            activeDisplayIdByActivity.remove(activeActivityOnDisplay);
+        }
+
+        return true;
+    }
+
+    private void rememberProjection(int displayId, Class<?> targetActivity) {
+        activeActivityByDisplayId.put(displayId, targetActivity);
+        activeDisplayIdByActivity.put(targetActivity, displayId);
+    }
+
+    private void sendStopProjection(int displayId, Class<?> targetActivity) {
+        Intent intent = new Intent(ProjectionControl.ACTION_STOP_PROJECTION);
+        intent.setPackage(getPackageName());
+        intent.putExtra(ProjectionControl.EXTRA_DISPLAY_ID, displayId);
+        intent.putExtra(ProjectionControl.EXTRA_ACTIVITY_CLASS, targetActivity.getName());
+        sendBroadcast(intent);
+    }
+
+    private Class<?> getSelectedActivityClass() {
+        return activitySpinner.getSelectedItemPosition() == 0
+                ? GlChildActivityOne.class
+                : GlChildActivityTwo.class;
+    }
+
+    private String getActivityLabel(Class<?> activityClass) {
+        return activityClass == GlChildActivityOne.class
+                ? "OpenGL 子 Activity 1"
+                : "OpenGL 子 Activity 2";
     }
 
     private TextView makeLabel(String text) {
