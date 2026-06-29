@@ -1,0 +1,21 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application
+        android:allowBackup="false"
+        android:label="ScreenShare Dual Path"
+        android:theme="@style/AppTheme">
+        <activity
+            android:name="com.example.screenshare.dualpath.GlChildActivityOne"
+            android:theme="@style/FullscreenTheme" />
+        <activity
+            android:name="com.example.screenshare.dualpath.GlChildActivityTwo"
+            android:theme="@style/FullscreenTheme" />
+        <activity
+            android:name="com.example.screenshare.dualpath.MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
