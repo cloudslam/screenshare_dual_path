@@ -53,7 +53,7 @@ public class AnimatedRenderer implements GLSurfaceView.Renderer {
     private int drawMode;
     private int vertexCount;
     private FloatBuffer activeBuffer;
-    private long startTimeNs;
+    private int frameIndex;
 
     public AnimatedRenderer(int mode) {
         this.mode = mode;
@@ -84,7 +84,7 @@ public class AnimatedRenderer implements GLSurfaceView.Renderer {
         GLES20.glDisable(GLES20.GL_CULL_FACE);
         GLES20.glUseProgram(program);
         GLES20.glEnableVertexAttribArray(positionHandle);
-        startTimeNs = System.nanoTime();
+        frameIndex = 0;
     }
 
     @Override
@@ -94,24 +94,25 @@ public class AnimatedRenderer implements GLSurfaceView.Renderer {
 
     @Override
     public void onDrawFrame(GL10 gl) {
-        float t = (System.nanoTime() - startTimeNs) / 1_000_000_000.0f;
+        int frame = frameIndex++;
         if (mode == 1) {
-            renderTriangle(t);
+            renderTriangle(frame);
         } else {
-            renderSquare(t);
+            renderSquare(frame);
         }
     }
 
-    private void renderTriangle(float t) {
-        float red = 0.5f + 0.5f * (float) Math.sin(t * 2.0f);
-        float green = 0.5f + 0.5f * (float) Math.sin(t * 2.0f + 2.094f);
-        float blue = 0.5f + 0.5f * (float) Math.sin(t * 2.0f + 4.188f);
-        drawShape(t * 1.8f, 0.9f, red, green, blue);
+    private void renderTriangle(int frame) {
+        float phase = frame * 0.033333f;
+        float red = 0.5f + 0.5f * (float) Math.sin(phase);
+        float green = 0.5f + 0.5f * (float) Math.sin(phase + 2.094f);
+        float blue = 0.5f + 0.5f * (float) Math.sin(phase + 4.188f);
+        drawShape(frame * 0.03f, 0.9f, red, green, blue);
     }
 
-    private void renderSquare(float t) {
-        float pulse = 0.75f + 0.2f * (float) Math.sin(t * 4.0f);
-        drawShape(-t * 1.2f, pulse, 0.1f, 0.8f, 1.0f);
+    private void renderSquare(int frame) {
+        float pulse = 0.75f + 0.2f * (float) Math.sin(frame * 0.066667f);
+        drawShape(-frame * 0.02f, pulse, 0.1f, 0.8f, 1.0f);
     }
 
     private void drawShape(float angle, float scale, float red, float green, float blue) {

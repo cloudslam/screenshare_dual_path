@@ -3,14 +3,16 @@ package com.example.screenshare.dualpath.gl;
 import android.content.Context;
 import android.opengl.GLSurfaceView;
 import android.view.Choreographer;
+import android.view.Display;
 
 public class AnimatedGLSurfaceView extends GLSurfaceView implements Choreographer.FrameCallback {
-    private static final long MIN_FRAME_INTERVAL_NS = 15_500_000L;
+    private static final float TARGET_FPS = 60.0f;
 
     private boolean attachedToWindow;
     private boolean paused;
     private boolean frameCallbackPosted;
-    private long lastRenderFrameTimeNs;
+    private int vsyncsPerRender = 1;
+    private int vsyncCounter;
 
     public AnimatedGLSurfaceView(Context context, int mode) {
         super(context);
@@ -25,6 +27,7 @@ public class AnimatedGLSurfaceView extends GLSurfaceView implements Choreographe
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         attachedToWindow = true;
+        updateFrameCadenceFromDisplay();
         startFrameCallback();
     }
 
@@ -39,6 +42,7 @@ public class AnimatedGLSurfaceView extends GLSurfaceView implements Choreographe
     public void onResume() {
         paused = false;
         super.onResume();
+        updateFrameCadenceFromDisplay();
         startFrameCallback();
     }
 
@@ -56,12 +60,18 @@ public class AnimatedGLSurfaceView extends GLSurfaceView implements Choreographe
             return;
         }
 
-        if (lastRenderFrameTimeNs == 0L
-                || frameTimeNanos - lastRenderFrameTimeNs >= MIN_FRAME_INTERVAL_NS) {
-            lastRenderFrameTimeNs = frameTimeNanos;
+        if (vsyncCounter == 0) {
             requestRender();
         }
+        vsyncCounter = (vsyncCounter + 1) % vsyncsPerRender;
         startFrameCallback();
+    }
+
+    private void updateFrameCadenceFromDisplay() {
+        Display display = getDisplay();
+        float refreshRate = display == null ? TARGET_FPS : display.getRefreshRate();
+        vsyncsPerRender = Math.max(1, Math.round(refreshRate / TARGET_FPS));
+        vsyncCounter = 0;
     }
 
     private void startFrameCallback() {
