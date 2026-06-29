@@ -1,0 +1,14 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace 'com.example.screenshare.dualpath'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.example.screenshare.dualpath'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
+    }
+}
