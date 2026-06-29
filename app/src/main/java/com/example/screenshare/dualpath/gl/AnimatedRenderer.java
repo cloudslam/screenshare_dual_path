@@ -50,6 +50,9 @@ public class AnimatedRenderer implements GLSurfaceView.Renderer {
     private int angleHandle;
     private int scaleHandle;
     private int colorHandle;
+    private int drawMode;
+    private int vertexCount;
+    private FloatBuffer activeBuffer;
     private long startTimeNs;
 
     public AnimatedRenderer(int mode) {
@@ -65,6 +68,22 @@ public class AnimatedRenderer implements GLSurfaceView.Renderer {
         angleHandle = GLES20.glGetUniformLocation(program, "uAngle");
         scaleHandle = GLES20.glGetUniformLocation(program, "uScale");
         colorHandle = GLES20.glGetUniformLocation(program, "uColor");
+        if (mode == 1) {
+            activeBuffer = triangleBuffer;
+            drawMode = GLES20.GL_TRIANGLES;
+            vertexCount = 3;
+            GLES20.glClearColor(0.02f, 0.02f, 0.08f, 1.0f);
+        } else {
+            activeBuffer = squareBuffer;
+            drawMode = GLES20.GL_TRIANGLE_STRIP;
+            vertexCount = 4;
+            GLES20.glClearColor(0.08f, 0.02f, 0.02f, 1.0f);
+        }
+        GLES20.glDisable(GLES20.GL_DITHER);
+        GLES20.glDisable(GLES20.GL_DEPTH_TEST);
+        GLES20.glDisable(GLES20.GL_CULL_FACE);
+        GLES20.glUseProgram(program);
+        GLES20.glEnableVertexAttribArray(positionHandle);
         startTimeNs = System.nanoTime();
     }
 
@@ -87,27 +106,21 @@ public class AnimatedRenderer implements GLSurfaceView.Renderer {
         float red = 0.5f + 0.5f * (float) Math.sin(t * 2.0f);
         float green = 0.5f + 0.5f * (float) Math.sin(t * 2.0f + 2.094f);
         float blue = 0.5f + 0.5f * (float) Math.sin(t * 2.0f + 4.188f);
-        GLES20.glClearColor(0.02f, 0.02f, 0.08f, 1.0f);
-        drawShape(triangleBuffer, GLES20.GL_TRIANGLES, 3, t * 1.8f, 0.9f, red, green, blue);
+        drawShape(t * 1.8f, 0.9f, red, green, blue);
     }
 
     private void renderSquare(float t) {
         float pulse = 0.75f + 0.2f * (float) Math.sin(t * 4.0f);
-        GLES20.glClearColor(0.08f, 0.02f, 0.02f, 1.0f);
-        drawShape(squareBuffer, GLES20.GL_TRIANGLE_STRIP, 4, -t * 1.2f, pulse, 0.1f, 0.8f, 1.0f);
+        drawShape(-t * 1.2f, pulse, 0.1f, 0.8f, 1.0f);
     }
 
-    private void drawShape(FloatBuffer vertices, int drawMode, int vertexCount, float angle,
-                           float scale, float red, float green, float blue) {
+    private void drawShape(float angle, float scale, float red, float green, float blue) {
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
-        GLES20.glUseProgram(program);
-        GLES20.glEnableVertexAttribArray(positionHandle);
-        GLES20.glVertexAttribPointer(positionHandle, 2, GLES20.GL_FLOAT, false, 0, vertices);
+        GLES20.glVertexAttribPointer(positionHandle, 2, GLES20.GL_FLOAT, false, 0, activeBuffer);
         GLES20.glUniform1f(angleHandle, angle);
         GLES20.glUniform1f(scaleHandle, scale);
         GLES20.glUniform4f(colorHandle, red, green, blue, 1.0f);
         GLES20.glDrawArrays(drawMode, 0, vertexCount);
-        GLES20.glDisableVertexAttribArray(positionHandle);
     }
 
     private FloatBuffer createBuffer(float[] coordinates) {
