@@ -34,12 +34,14 @@ public class MainActivity extends Activity {
     private static final int COLOR_DANGER = Color.rgb(255, 105, 105);
     private static final int COLOR_SUCCESS = Color.rgb(74, 222, 128);
     private static final int COLOR_INPUT = Color.rgb(244, 248, 255);
+    private static final int PROJECTION_SWITCH_DELAY_MS = 700;
 
     private final Map<Integer, Class<?>> activeActivityByDisplayId = new HashMap<>();
     private final Map<Class<?>, Integer> activeDisplayIdByActivity = new HashMap<>();
     private EditText displayIdEditText;
     private Spinner activitySpinner;
     private TextView statusTextView;
+    private Runnable pendingLaunchRunnable;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -156,10 +158,28 @@ public class MainActivity extends Activity {
 
         displayIdEditText.setError(null);
         Class<?> targetActivity = getSelectedActivityClass();
-        if (!prepareProjectionSlot(displayId, targetActivity)) {
+        int switchDelayMs = prepareProjectionSlot(displayId, targetActivity);
+        if (switchDelayMs < 0) {
             return;
         }
 
+        if (switchDelayMs > 0) {
+            statusTextView.setTextColor(COLOR_TEXT_SECONDARY);
+            statusTextView.setText("正在切换投屏，请稍候...");
+            clearPendingLaunch();
+            pendingLaunchRunnable = () -> {
+                pendingLaunchRunnable = null;
+                launchProjection(displayId, targetActivity);
+            };
+            displayIdEditText.postDelayed(pendingLaunchRunnable, switchDelayMs);
+            return;
+        }
+
+        clearPendingLaunch();
+        launchProjection(displayId, targetActivity);
+    }
+
+    private void launchProjection(int displayId, Class<?> targetActivity) {
         Intent intent = new Intent(this, targetActivity);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         intent.putExtra(ProjectionControl.EXTRA_DISPLAY_ID, displayId);
@@ -178,6 +198,7 @@ public class MainActivity extends Activity {
     }
 
     private void cancelProjection() {
+        clearPendingLaunch();
         Integer displayId = readDisplayIdForCancel();
         if (displayId == null) {
             return;
@@ -217,30 +238,41 @@ public class MainActivity extends Activity {
         }
     }
 
-    private boolean prepareProjectionSlot(int displayId, Class<?> targetActivity) {
+    private int prepareProjectionSlot(int displayId, Class<?> targetActivity) {
         Class<?> activeActivityOnDisplay = activeActivityByDisplayId.get(displayId);
         Integer activeDisplayForActivity = activeDisplayIdByActivity.get(targetActivity);
+        boolean stoppedExistingProjection = false;
 
         if (activeActivityOnDisplay == targetActivity && activeDisplayForActivity != null
                 && activeDisplayForActivity == displayId) {
             statusTextView.setTextColor(COLOR_TEXT_SECONDARY);
             statusTextView.setText("已经启动投屏");
-            return false;
+            return -1;
         }
 
         if (activeDisplayForActivity != null) {
             sendStopProjection(activeDisplayForActivity, targetActivity);
             activeActivityByDisplayId.remove(activeDisplayForActivity);
             activeDisplayIdByActivity.remove(targetActivity);
+            stoppedExistingProjection = true;
         }
 
         if (activeActivityOnDisplay != null && activeActivityOnDisplay != targetActivity) {
             sendStopProjection(displayId, activeActivityOnDisplay);
             activeActivityByDisplayId.remove(displayId);
             activeDisplayIdByActivity.remove(activeActivityOnDisplay);
+            stoppedExistingProjection = true;
         }
 
-        return true;
+        return stoppedExistingProjection ? PROJECTION_SWITCH_DELAY_MS : 0;
+    }
+
+    private void clearPendingLaunch() {
+        if (pendingLaunchRunnable == null || displayIdEditText == null) {
+            return;
+        }
+        displayIdEditText.removeCallbacks(pendingLaunchRunnable);
+        pendingLaunchRunnable = null;
     }
 
     private void rememberProjection(int displayId, Class<?> targetActivity) {
