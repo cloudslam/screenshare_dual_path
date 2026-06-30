@@ -5,6 +5,7 @@ import android.opengl.GLSurfaceView;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Process;
 import android.view.Choreographer;
 import android.view.Display;
 import android.view.Surface;
@@ -103,7 +104,8 @@ public class AnimatedGLSurfaceView extends GLSurfaceView implements Choreographe
         if (!attachedToWindow || paused || frameSchedulerThread != null) {
             return;
         }
-        frameSchedulerThread = new HandlerThread("ScreenShareGlFrameScheduler");
+        frameSchedulerThread = new HandlerThread("ScreenShareGlFrameScheduler",
+                Process.THREAD_PRIORITY_DISPLAY);
         frameSchedulerThread.start();
         frameSchedulerHandler = new Handler(frameSchedulerThread.getLooper());
         frameSchedulerHandler.post(() -> {

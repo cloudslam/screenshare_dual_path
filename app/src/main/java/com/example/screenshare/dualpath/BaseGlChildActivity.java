@@ -32,6 +32,11 @@ public abstract class BaseGlChildActivity extends Activity {
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
                 WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                | WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            getWindow().setSustainedPerformanceMode(true);
+        }
         projectionDisplayId = getIntent().getIntExtra(ProjectionControl.EXTRA_DISPLAY_ID,
                 ProjectionControl.DISPLAY_ID_NONE);
         projectionActivityClass = getIntent().getStringExtra(ProjectionControl.EXTRA_ACTIVITY_CLASS);

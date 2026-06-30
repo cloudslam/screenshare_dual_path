@@ -2,6 +2,7 @@ package com.example.screenshare.dualpath.gl;
 
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
+import android.os.Process;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -61,6 +62,7 @@ public class AnimatedRenderer implements GLSurfaceView.Renderer {
 
     @Override
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
+        Process.setThreadPriority(Process.THREAD_PRIORITY_DISPLAY);
         program = ShaderUtils.createProgram(VERTEX_SHADER, FRAGMENT_SHADER);
         positionHandle = GLES20.glGetAttribLocation(program, "aPosition");
         angleHandle = GLES20.glGetUniformLocation(program, "uAngle");
