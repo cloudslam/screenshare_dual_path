@@ -2,14 +2,11 @@ package com.example.screenshare.dualpath.gl;
 
 import android.content.Context;
 import android.opengl.GLSurfaceView;
-import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Process;
 import android.view.Choreographer;
 import android.view.Display;
-import android.view.Surface;
-import android.view.SurfaceHolder;
 
 public class AnimatedGLSurfaceView extends GLSurfaceView implements Choreographer.FrameCallback {
     private static final int MODE_ACTIVITY_TWO = 2;
@@ -20,8 +17,9 @@ public class AnimatedGLSurfaceView extends GLSurfaceView implements Choreographe
     private volatile boolean attachedToWindow;
     private volatile boolean paused;
     private volatile boolean frameCallbackPosted;
-    private int vsyncsPerRender = 1;
-    private int vsyncCounter;
+    private float displayRefreshRate = ACTIVITY_ONE_FPS;
+    private float effectiveTargetFps;
+    private float frameAccumulator;
     private HandlerThread frameSchedulerThread;
     private Handler frameSchedulerHandler;
     private Choreographer frameSchedulerChoreographer;
@@ -34,12 +32,6 @@ public class AnimatedGLSurfaceView extends GLSurfaceView implements Choreographe
         setPreserveEGLContextOnPause(true);
         setRenderer(new AnimatedRenderer(mode));
         setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
-    }
-
-    @Override
-    public void surfaceCreated(SurfaceHolder holder) {
-        requestFixedSourceFrameRate(holder);
-        super.surfaceCreated(holder);
     }
 
     @Override
@@ -79,29 +71,19 @@ public class AnimatedGLSurfaceView extends GLSurfaceView implements Choreographe
             return;
         }
 
-        if (vsyncCounter == 0) {
+        frameAccumulator += effectiveTargetFps;
+        if (frameAccumulator >= displayRefreshRate) {
+            frameAccumulator -= displayRefreshRate;
             requestRender();
         }
-        vsyncCounter = (vsyncCounter + 1) % vsyncsPerRender;
         postFrameCallbackOnScheduler();
     }
 
     private void updateFrameCadenceFromDisplay() {
         Display display = getDisplay();
-        float refreshRate = display == null ? targetFps : display.getRefreshRate();
-        vsyncsPerRender = Math.max(1, Math.round(refreshRate / targetFps));
-        vsyncCounter = 0;
-    }
-
-    private void requestFixedSourceFrameRate(SurfaceHolder holder) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R || holder == null) {
-            return;
-        }
-        Surface surface = holder.getSurface();
-        if (surface == null || !surface.isValid()) {
-            return;
-        }
-        surface.setFrameRate(targetFps, Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE);
+        displayRefreshRate = display == null ? ACTIVITY_ONE_FPS : display.getRefreshRate();
+        effectiveTargetFps = Math.min(targetFps, displayRefreshRate);
+        frameAccumulator = displayRefreshRate - effectiveTargetFps;
     }
 
     private void startFrameScheduler() {
