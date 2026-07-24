@@ -44,8 +44,8 @@ public class AnimatedGLSurfaceView extends GLSurfaceView implements Choreographe
 
     @Override
     protected void onDetachedFromWindow() {
-        stopFrameScheduler();
         attachedToWindow = false;
+        stopFrameScheduler();
         super.onDetachedFromWindow();
     }
 
@@ -60,7 +60,7 @@ public class AnimatedGLSurfaceView extends GLSurfaceView implements Choreographe
     @Override
     public void onPause() {
         paused = true;
-        stopFrameScheduler();
+        pauseFrameScheduler();
         super.onPause();
     }
 
@@ -87,7 +87,11 @@ public class AnimatedGLSurfaceView extends GLSurfaceView implements Choreographe
     }
 
     private void startFrameScheduler() {
-        if (!attachedToWindow || paused || frameSchedulerThread != null) {
+        if (!attachedToWindow || paused) {
+            return;
+        }
+        if (frameSchedulerThread != null && frameSchedulerHandler != null) {
+            frameSchedulerHandler.post(this::postFrameCallbackOnScheduler);
             return;
         }
         frameSchedulerThread = new HandlerThread("ScreenShareGlFrameScheduler",
@@ -97,6 +101,19 @@ public class AnimatedGLSurfaceView extends GLSurfaceView implements Choreographe
         frameSchedulerHandler.post(() -> {
             frameSchedulerChoreographer = Choreographer.getInstance();
             postFrameCallbackOnScheduler();
+        });
+    }
+
+    private void pauseFrameScheduler() {
+        Handler handler = frameSchedulerHandler;
+        if (handler == null) {
+            return;
+        }
+        handler.post(() -> {
+            if (frameSchedulerChoreographer != null && frameCallbackPosted) {
+                frameSchedulerChoreographer.removeFrameCallback(this);
+            }
+            frameCallbackPosted = false;
         });
     }
 
